@@ -1,13 +1,22 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Profound",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
     "dark": "#15803D"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/logo/light.svg",
+  "metadata": {
+    "og:site_name": "Profound",
+    "og:title": "Profound — Your next revenue & sales engine",
+    "og:description": "AI Search Visibility Platform. Turn AI-driven search into your most powerful revenue channel.",
+    "og:image": "https://profound-a5fa9393.mintlify.app/logo/dark.svg",
+    "twitter:card": "summary",
+    "twitter:title": "Profound — Your next revenue & sales engine",
+    "twitter:description": "AI Search Visibility Platform. Turn AI-driven search into your most powerful revenue channel."
+  },
   "navigation": {
     "tabs": [
       {
@@ -169,9 +178,8 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/tryprofound",
+      "linkedin": "https://linkedin.com/company/tryprofound"
     }
   }
 }
