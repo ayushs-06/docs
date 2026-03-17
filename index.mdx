@@ -1,97 +1,170 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Profound RPI — Revenue Programming Interface"
+description: "Internal engineering docs for Profound's Account Intelligence Hub. AI-powered revenue intelligence for Sales and CS teams."
+og:title: "Profound RPI — Revenue Programming Interface"
+twitter:title: "Profound RPI — Revenue Programming Interface"
 ---
 
-## Setting up
+<img
+  className="block dark:hidden"
+  src="/logo/light.svg"
+  alt="Profound"
+  width="52"
+/>
+<img
+  className="hidden dark:block"
+  src="/logo/dark.svg"
+  alt="Profound"
+  width="52"
+/>
 
-Get your documentation site up and running in minutes.
+# Your revenue intelligence, automated.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Profound is the **AI Search Visibility Platform** trusted by 500+ companies including Ramp, U.S. Bank, Rippling, MongoDB, and DocuSign. This internal knowledge base covers the engineering, data, and AI systems that power the **Account Intelligence Hub** — the tool Sales and CS use every day to understand accounts, prepare for meetings, and act on call intelligence.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={3}>
+  <Card icon="chart-line">
+    **100M+** daily queries processed
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card icon="arrow-trend-up">
+    **4.4×** conversion rate vs organic
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card icon="building">
+    **500+** enterprise customers
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+---
 
-Everything you need to create world-class documentation.
+## What is the Account Intelligence Hub?
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+The Hub is a web application for Profound's Sales and CS teams. It connects Salesforce, Gong call data (via Snowflake), and live web intelligence into a single workspace — then runs Claude AI agents to surface exactly what you need, when you need it.
 
-## Need inspiration?
+<Note>
+  Access requires a Profound WorkOS SSO session. This documentation covers the full engineering stack: backend, data pipelines, AI agents, and frontend.
+</Note>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+### Six AI-powered capabilities
+
+<CardGroup cols={2}>
+  <Card title="Company intelligence" icon="building-magnifying-glass" href="/hub/ai-prompts-models">
+    Claude Opus scrapes the web via Firecrawl and synthesizes Snowflake firmographic data into a complete company profile — funding, key people, tech stack, hiring signals, competitors, and a recommended sales approach.
+  </Card>
+  <Card title="Call summaries" icon="phone-volume" href="/hub/ai-prompts-models">
+    Claude Sonnet reads every Gong transcript and produces structured summaries with topics, decisions, objections, sentiment trajectory, deal momentum, and competitive mentions.
+  </Card>
+  <Card title="Action items" icon="list-check" href="/hub/ai-prompts-models">
+    Claude Sonnet extracts action items from each call summary automatically, assigning owners and due dates so nothing falls through the cracks.
+  </Card>
+  <Card title="Loss analysis" icon="chart-pie" href="/hub/ai-prompts-models">
+    Claude Opus reviews the full call history for a Closed Lost account and delivers a structured post-mortem — failure category, deal arc, turning point, what we missed, and win-back potential.
+  </Card>
+  <Card title="Meeting prep briefs" icon="calendar-check" href="/hub/ai-prompts-models">
+    Before any call — discovery, demo, negotiation, QBR — Claude Sonnet assembles a tailored brief with attendee backgrounds, open commitments, likely objections, and suggested questions.
+  </Card>
+  <Card title="Health scores" icon="heart-pulse" href="/hub/database-schema">
+    A weighted composite score computed daily from Snowflake `DAILY_ENTERPRISE_*` tables — priority, adoption, and relationship risk — giving CS a single number per account. *(Currently disabled.)*
+  </Card>
+</CardGroup>
+
+---
+
+## How data flows
+
+Every piece of intelligence in the Hub starts with a sync from Snowflake and cascades through AI agents via SQS.
+
+```
+Salesforce / Gong (via Snowflake)
+  └── sf_sync / gong_sync           ← runs every hour
+        ├── company_intel            ← Claude Opus + Firecrawl
+        ├── call_detect
+        │     └── call_summary      ← Claude Sonnet
+        │           └── action_extract ← Claude Sonnet
+        ├── loss_analysis            ← Claude Opus (Closed Lost)
+        └── health_score             ← no AI, Snowflake aggregates
+```
+
+On-demand flows triggered by the frontend:
+
+```
+POST /meeting-prep  →  MeetingPrepHandler  →  Claude Sonnet  →  brief
+POST /zoominfo/enrich  →  ZoomInfoClient  →  contacts table
+```
+
+<Tip>
+  The worker is a single Python process polling SQS. Handlers cascade by enqueuing follow-up tasks. See the [worker system](/hub/worker-system) for full retry and routing logic.
+</Tip>
+
+---
+
+## Data integrations
+
+<CardGroup cols={2}>
+  <Card title="Salesforce" icon="cloud" href="/hub/snowflake-schema">
+    Account records, opportunity stages, and owner metadata synced from `DBT_ANALYTICS.SALESFORCE` via Fivetran. Closed Lost detection happens at the Opportunity level.
+  </Card>
+  <Card title="Gong via Snowflake" icon="phone" href="/hub/snowflake-schema">
+    Full call transcripts and metadata from `PROFOUND_GTM.ANALYTICS.FACT_GONG_CALLS`. No Gong API key required — all data flows through Snowflake.
+  </Card>
+  <Card title="HubSpot via Snowflake" icon="hubspot" href="/hub/snowflake-schema">
+    Firmographic data and a three-method SF ↔ HubSpot ID mapping (confidence 1.0 → 0.9 → 0.7) stored in `id_mapping` for cross-system joins.
+  </Card>
+  <Card title="ZoomInfo" icon="address-book" href="/hub/external-clients">
+    Contact enrichment via ZoomInfo Search (free) and Enrich (credits). Okta OAuth2 with PKCE; refresh tokens are persisted to the `settings` table.
+  </Card>
+  <Card title="Anthropic Claude" icon="microchip-ai" href="/hub/external-clients">
+    Claude Opus for company intel and loss analysis. Claude Sonnet for call summaries, action extraction, and meeting prep. All prompts include Profound's full seller context.
+  </Card>
+  <Card title="Firecrawl" icon="spider-web" href="/hub/external-clients">
+    Web scraping for company homepage, `/about`, `/careers`, and news search. Used exclusively by `CompanyIntelHandler` to build company profiles.
+  </Card>
+</CardGroup>
+
+---
+
+## Explore the engineering docs
+
+<CardGroup cols={2}>
+  <Card title="System architecture" icon="sitemap" href="/hub/system-architecture">
+    Service topology, Docker setup, and end-to-end request lifecycle from browser to SQS and back
+  </Card>
+  <Card title="Database schema" icon="database" href="/hub/database-schema">
+    PostgreSQL 16 schema for all 10 Hub tables — accounts, call summaries, action items, profiles, briefs, contacts, and more
+  </Card>
+  <Card title="Worker system" icon="gears" href="/hub/worker-system">
+    SQS polling loop, task router, exponential backoff retry logic, and detailed breakdown of all 9 handler classes
+  </Card>
+  <Card title="API routes" icon="route" href="/hub/api-routes">
+    All 30+ FastAPI endpoints across accounts, calls, actions, loss analysis, admin, and ZoomInfo — with auth requirements and query params
+  </Card>
+  <Card title="AI prompts & models" icon="wand-magic-sparkles" href="/hub/ai-prompts-models">
+    Prompt templates, JSON output schemas, and model assignments for every Claude agent in the system
+  </Card>
+  <Card title="Key design decisions" icon="lightbulb" href="/hub/key-design-decisions">
+    13 architectural decisions explained — why single worker, why read-only Snowflake, why chronological call processing, and more
+  </Card>
+  <Card title="Snowflake schema" icon="snowflake" href="/hub/snowflake-schema">
+    The two Snowflake databases, key tables, the `hubspot_company_id` type inconsistency, and the three-method ID mapping strategy
+  </Card>
+  <Card title="Data flow pipelines" icon="diagram-project" href="/hub/data-flow-pipelines">
+    Visual maps of the primary daily pipeline, Gong discovery pipeline, meeting prep, and ZoomInfo enrichment
+  </Card>
+</CardGroup>
+
+---
+
+## About Profound
+
+Profound is the AI Search Visibility Platform — helping enterprise companies measure, understand, and grow their presence in AI-driven search (AEO/GEO). Founded and headquartered in San Francisco.
+
+<CardGroup cols={3}>
+  <Card icon="dollar-sign">
+    **$58.5M raised** — $35M Series B led by Sequoia Capital (August 2025)
+  </Card>
+  <Card icon="box">
+    **6 products** — AEI, Prompt Volumes, Agent Analytics, Agents/Workflows, Shopping, Citations
+  </Card>
+  <Card icon="users">
+    **500+ customers** — Ramp, U.S. Bank, Rippling, MongoDB, DocuSign, and more
+  </Card>
+</CardGroup>

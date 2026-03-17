@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Profound",
+  "name": "Profound RPI",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -9,13 +9,13 @@
   },
   "favicon": "/logo/light.svg",
   "metadata": {
-    "og:site_name": "Profound",
-    "og:title": "Profound — Your next revenue & sales engine",
-    "og:description": "AI Search Visibility Platform. Turn AI-driven search into your most powerful revenue channel.",
+    "og:site_name": "Profound RPI",
+    "og:title": "Profound RPI — Revenue Programming Interface",
+    "og:description": "Internal engineering docs for Profound's Account Intelligence Hub. AI-powered revenue intelligence for Sales and CS teams.",
     "og:image": "https://profound-a5fa9393.mintlify.app/logo/dark.svg",
     "twitter:card": "summary",
-    "twitter:title": "Profound — Your next revenue & sales engine",
-    "twitter:description": "AI Search Visibility Platform. Turn AI-driven search into your most powerful revenue channel."
+    "twitter:title": "Profound RPI — Revenue Programming Interface",
+    "twitter:description": "Internal engineering docs for Profound's Account Intelligence Hub. AI-powered revenue intelligence for Sales and CS teams."
   },
   "navigation": {
     "tabs": [
@@ -75,43 +75,6 @@
         ]
       },
       {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
-          },
-          {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
-          }
-        ]
-      },
-      {
         "tab": "API reference",
         "groups": [
           {
@@ -135,14 +98,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "tryprofound.com",
+          "href": "https://www.tryprofound.com",
+          "icon": "globe"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "LinkedIn",
+          "href": "https://linkedin.com/company/tryprofound",
+          "icon": "linkedin"
         }
       ]
     }
@@ -154,14 +117,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "tryprofound.com",
+        "href": "https://www.tryprofound.com"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "Open Hub",
+      "href": "https://sales.dev.tryprofound.com"
     }
   },
   "contextual": {
