@@ -1,28 +1,6 @@
-# Mintlify Starter Kit
+# RPI Docs
 
-Use the starter kit to get your docs deployed and ready to customize.
-
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
-
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
-
-```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
+The Revenue Programming Interface (RPI) is Profound's internal intelligence layer that connects every signal across the revenue cycle — Salesforce account data, Gong call transcripts, HubSpot firmographics, and live web intelligence — into a single, AI-powered workspace for Sales and CS. Rather than stitching together exports across tools, RPI runs Claude AI agents continuously in the background: summarizing every customer call, extracting action items, profiling target companies, diagnosing lost deals, and assembling tailored meeting briefs before every conversation. Built on a FastAPI backend, PostgreSQL, and an SQS-driven worker pipeline, RPI syncs hourly from Snowflake and surfaces exactly the right context — at the account, call, and contact level — so your team spends less time researching and more time closing.
 
 ## Development
 
@@ -39,12 +17,6 @@ mint dev
 ```
 
 View your local preview at `http://localhost:3000`.
-
-## Publishing changes
-
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
-
-## Need help?
 
 ### Troubleshooting
 
