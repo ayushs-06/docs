@@ -1,0 +1,61 @@
+---
+title: "Account Intelligence Hub"
+description: "Internal tool for Profound's Sales and CS teams that unifies Salesforce accounts, Gong call intelligence, and AI-generated company research into a single web application."
+---
+
+Account Intelligence Hub is an internal web application for Profound's Sales and CS teams. It unifies Salesforce accounts, Gong call intelligence (via Snowflake), and AI-generated company research into a single interface.
+
+<Note>
+  This is an internal tool. Access requires a valid Profound WorkOS SSO session.
+</Note>
+
+## What it does
+
+The Hub runs AI agents powered by the Anthropic API to generate:
+
+- **Company profiles** — web-scraped via Firecrawl and enriched with HubSpot firmographic data
+- **Call summaries** — structured summaries of Gong calls with topics, decisions, objections, and sentiment
+- **Action items** — automatically extracted from call summaries
+- **Loss analyses** — post-mortem AI analysis for Closed Lost accounts
+- **Meeting prep briefs** — tailored briefs by meeting type (discovery, demo, negotiation, and more)
+- **Health scores** — computed from Snowflake `DAILY_ENTERPRISE_*` tables (currently disabled)
+
+## Key integrations
+
+<CardGroup cols={2}>
+  <Card title="Salesforce" icon="cloud">
+    Account records, opportunity stages, and owner data synced from Snowflake `DBT_ANALYTICS.SALESFORCE`
+  </Card>
+  <Card title="Gong via Snowflake" icon="phone">
+    Call transcripts and metadata from `PROFOUND_GTM.ANALYTICS.FACT_GONG_CALLS`
+  </Card>
+  <Card title="Anthropic Claude" icon="microchip-ai">
+    Claude Sonnet for call summaries, action extraction, and meeting prep; Claude Opus for company intel and loss analysis
+  </Card>
+  <Card title="ZoomInfo" icon="address-book">
+    Contact enrichment via ZoomInfo Search and Enrich APIs with Okta OAuth2
+  </Card>
+</CardGroup>
+
+## Explore the docs
+
+<CardGroup cols={2}>
+  <Card title="System architecture" icon="sitemap" href="/hub/system-architecture">
+    End-to-end architecture, service topology, and request lifecycle
+  </Card>
+  <Card title="Docker services" icon="server" href="/hub/docker-services">
+    Configuration for all five Docker services
+  </Card>
+  <Card title="Database schema" icon="database" href="/hub/database-schema">
+    PostgreSQL schema for all Hub tables managed by Alembic
+  </Card>
+  <Card title="Worker system" icon="gears" href="/hub/worker-system">
+    SQS polling, task routing, retry logic, and all handler descriptions
+  </Card>
+  <Card title="API routes" icon="route" href="/hub/api-routes">
+    All FastAPI routes with authentication requirements and query parameters
+  </Card>
+  <Card title="Key design decisions" icon="lightbulb" href="/hub/key-design-decisions">
+    Architectural rationale and important constraints
+  </Card>
+</CardGroup>

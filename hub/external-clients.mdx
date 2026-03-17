@@ -1,0 +1,133 @@
+---
+title: "External clients"
+description: "SnowflakeClient, AnthropicClient, FirecrawlClient, SQSClient, and ZoomInfoClient reference."
+---
+
+## `SnowflakeClient`
+
+**File:** `src/clients/snowflake.py`
+
+### Authentication modes
+
+<Tabs>
+  <Tab title="Password auth">
+    Set `SNOWFLAKE_USER` and `SNOWFLAKE_PASSWORD` in your `.env` file.
+  </Tab>
+  <Tab title="Key-pair auth">
+    Set `SNOWFLAKE_USER` and either `SNOWFLAKE_CREDENTIALS_FILE` (a path to a JSON file) or `SNOWFLAKE_CREDENTIALS_JSON` (a JSON string for CI/CD). The client loads the private key as DER bytes and optionally applies a `role`.
+  </Tab>
+</Tabs>
+
+**Auto-reconnect:** On connection error (errno `390114`, sqlstates `08001` / `08003` / `08006`), the client reconnects once automatically.
+
+### Databases
+
+| Database | Purpose |
+|---|---|
+| `DBT_ANALYTICS` | SF accounts, HubSpot companies, account mappings, health scores |
+| `PROFOUND_GTM` | Gong call data (`GONG.FACT_GONG_CALLS`) |
+
+<Warning>
+  Do not confuse the two databases. `PROFOUND_GTM` is the only source for Gong transcripts and call metadata.
+</Warning>
+
+### Key queries
+
+| Method | Description |
+|---|---|
+| `get_sf_accounts(last_sync_at)` | SF accounts with owner and latest opportunity (ROW_NUMBER CTE) |
+| `get_sf_closed_lost_opportunities(last_sync_at)` | Closed Lost opportunities with account join |
+| `get_recent_call_domains(since_hours)` | Unique domains with recent Gong calls |
+| `get_sf_accounts_by_domains(domains)` | SF account lookup by domain list |
+| `get_sf_hs_mapping_from_sf()` | Method A: `ACCOUNT.HS_COMPANY_ID_C` |
+| `get_sf_hs_mapping_from_hubspot()` | Method B: `HUBSPOT.COMPANY.PROPERTY_SALESFORCEACCOUNTID` |
+| `get_hubspot_by_domain(domain)` | Method C: domain-based fallback |
+| `get_call_transcript(call_id)` | Full Gong transcript |
+| `detect_new_calls(account_domain, existing_call_ids)` | New calls not yet summarized |
+| `get_health_score_data(hubspot_company_id)` | Big join of `DAILY_ENTERPRISE_*` tables |
+| `get_health_score_history(hubspot_company_id, days)` | 90-day trend data |
+
+---
+
+## `AnthropicClient`
+
+**File:** `src/clients/anthropic_client.py`
+
+Wraps `anthropic.AsyncAnthropic` with streaming to avoid the 10-minute timeout on long requests.
+
+- **Streaming:** uses `messages.stream` instead of `messages.create`
+- **Default model:** `claude-sonnet-4-6`
+- **Default `max_tokens`:** 16384
+- **Response parsing:** attempts JSON first, then strips markdown fences, then falls back to raw text
+- **Returns:** `{content, input_tokens, output_tokens, model, stop_reason}`
+
+---
+
+## `FirecrawlClient`
+
+**File:** `src/clients/firecrawl.py`
+
+An `httpx.AsyncClient` wrapper used by `CompanyIntelHandler`.
+
+| Method | Description |
+|---|---|
+| `scrape(url)` | Scrape a single URL |
+| `search(query)` | Search for recent news and articles |
+
+---
+
+## `SQSClient`
+
+**File:** `src/clients/sqs.py`
+
+Wraps `boto3` SQS.
+
+| Method | Description |
+|---|---|
+| `publish(task_type, payload, task_id)` | Send a message to the main queue |
+| `publish_to(queue_url, ...)` | Send to a specific queue (e.g., the DLQ) |
+| `receive(max_messages, wait_time, visibility_timeout)` | Long-poll for messages |
+| `delete(receipt_handle)` | Delete a processed message |
+
+**Message format:**
+
+```json
+{
+  "task_type": "company_intel",
+  "payload": {},
+  "task_id": "uuid",
+  "timestamp": "ISO 8601"
+}
+```
+
+---
+
+## `ZoomInfoClient`
+
+**File:** `src/clients/zoominfo.py`
+
+An `httpx.AsyncClient` wrapper with Okta-based OAuth2 token management.
+
+| Method | Description |
+|---|---|
+| `search_contacts(attributes, page, page_size)` | Search contacts — free, no credits consumed |
+| `enrich_contacts(person_ids, output_fields)` | Enrich contacts — **costs credits**, max 25 IDs per call |
+
+### OAuth flow
+
+Okta rotates refresh tokens on each use. The client persists rotated tokens to the `settings` table via an `on_token_rotated` callback so they survive API restarts.
+
+<Steps>
+  <Step title="Start authorization">
+    `GET /api/admin/zoominfo/auth` generates a PKCE `code_verifier` and `code_challenge`, then returns the Okta authorization URL.
+  </Step>
+  <Step title="Admin logs in">
+    The admin opens the authorization URL in a browser and authenticates via Okta.
+  </Step>
+  <Step title="Exchange the code">
+    Okta redirects to `GET /api/admin/zoominfo/callback?code=...&state=...`. The backend exchanges the code for tokens using the stored `code_verifier`.
+  </Step>
+  <Step title="Store the refresh token">
+    The refresh token is saved to the `settings` table under the key `zoominfo_refresh_token`. Future API calls use this token, refreshing it automatically.
+  </Step>
+</Steps>

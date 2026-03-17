@@ -1,0 +1,247 @@
+---
+title: "Database schema"
+description: "PostgreSQL schema for all Hub tables, managed by Alembic."
+---
+
+The Hub uses **PostgreSQL 16**. All tables use UUID primary keys. Alembic manages migrations via an async `env.py`. Migrations run automatically on Docker startup.
+
+## Base model
+
+All models extend `Base`, which provides:
+
+- `id: UUID` — primary key, auto-generated
+- `created_at: DateTime(timezone=True)` — server default `now()`
+
+## `accounts`
+
+Synced from Salesforce. The core entity — everything else relates to it.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `salesforce_account_id` | VARCHAR(18) UNIQUE NOT NULL | SF Account ID |
+| `hubspot_company_id` | BIGINT | nullable |
+| `zoominfo_account_id` | VARCHAR(50) | nullable |
+| `name` | VARCHAR(255) NOT NULL | |
+| `domain` | VARCHAR(255) | nullable |
+| `owner_name` | VARCHAR(255) | nullable |
+| `owner_email` | VARCHAR(255) | nullable |
+| `stage` | VARCHAR(100) | SF Opportunity stage |
+| `deal_size_cents` | BIGINT | nullable |
+| `account_type` | VARCHAR(50) | nullable |
+| `close_date` | DATE | nullable |
+| `industry` | VARCHAR(100) | nullable |
+| `status` | VARCHAR(20) | default `"active"` |
+| `sf_last_synced_at` | TIMESTAMPTZ | nullable |
+| `updated_at` | TIMESTAMPTZ | nullable |
+| `created_at` | TIMESTAMPTZ | inherited from Base |
+
+**Indexes:** `sf_id`, `hubspot_id`, `domain`, `status`, `owner_email`, `stage`, `updated_at DESC`, `zoominfo_id`
+
+## `id_mapping`
+
+Salesforce ↔ HubSpot ID mapping cache.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `salesforce_account_id` | VARCHAR(18) NOT NULL | |
+| `hubspot_company_id` | VARCHAR(50) NOT NULL | stored as VARCHAR |
+| `match_method` | VARCHAR(50) | `sf_hs_field` \| `hubspot_sf_sync` \| `domain` |
+| `confidence` | FLOAT | 1.0 / 0.9 / 0.7 by method |
+| `verified` | BOOLEAN | default `false` |
+| `hubspot_domain` | VARCHAR(255) | nullable |
+| `updated_at` | TIMESTAMPTZ | nullable |
+
+**Unique constraint:** `(salesforce_account_id, hubspot_company_id)`
+
+## `call_summaries`
+
+AI-generated summaries of Gong calls. Transcripts are fetched from Snowflake on demand — they are never stored here.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE | |
+| `snowflake_call_id` | VARCHAR(255) UNIQUE NOT NULL | Gong call ID |
+| `gong_url` | VARCHAR(500) | nullable |
+| `call_date` | TIMESTAMPTZ NOT NULL | |
+| `call_title` | VARCHAR(500) | nullable |
+| `duration_seconds` | INTEGER | nullable |
+| `primary_rep_name` | VARCHAR(255) | nullable |
+| `primary_rep_email` | VARCHAR(255) | nullable |
+| `account_domain` | VARCHAR(255) | nullable |
+| `summary` | TEXT NOT NULL | AI-generated |
+| `topics` | JSONB | `[{topic, detail}]` |
+| `decisions` | JSONB | `[{decision, context}]` |
+| `objections` | JSONB | `[{objection, response_given, new_or_recurring}]` |
+| `sentiment` | VARCHAR(20) | `positive` \| `neutral` \| `negative` \| `mixed` |
+| `sentiment_score` | FLOAT | nullable |
+| `next_steps` | TEXT | nullable |
+| `agent_model` | VARCHAR(50) | Claude model used |
+| `updated_at` | TIMESTAMPTZ | nullable |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+**Indexes:** `account_id`, `call_date`, `snowflake_call_id`, `(account_id, call_date DESC)`
+
+## `action_items`
+
+Extracted from call summaries by the `action_extract` handler.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE | |
+| `call_summary_id` | UUID FK → `call_summaries` SET NULL | nullable |
+| `description` | TEXT NOT NULL | |
+| `owner_name` | VARCHAR(255) | nullable |
+| `owner_email` | VARCHAR(255) | nullable |
+| `due_date` | DATE | nullable |
+| `status` | VARCHAR(20) | `open` \| `completed` \| `dismissed` |
+| `completed_at` | TIMESTAMPTZ | nullable |
+| `completed_by` | VARCHAR(255) | nullable |
+| `updated_at` | TIMESTAMPTZ | nullable |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+**Indexes:** `account_id`, `status`, `owner_email`, `(account_id, status)`, `(status, due_date)`
+
+## `company_profiles`
+
+AI-generated via the Company Intel agent (Claude Opus + Firecrawl). One row per account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE UNIQUE | |
+| `overview` | JSONB | `{description, product, customers, founded, hq, size, industry}` |
+| `funding` | JSONB | `{stage, total_raised, last_round, investors[]}` |
+| `revenue_estimate` | JSONB | `{range, source, confidence}` |
+| `key_people` | JSONB | `[{name, title, linkedin, background, tenure, email}]` |
+| `tech_stack` | JSONB | `{cloud[], data[], crm[], marketing[], other[]}` |
+| `recent_news` | JSONB | `[{headline, date, source_url, relevance}]` |
+| `hiring_signals` | JSONB | `{open_roles_count, by_department, growth_interpretation}` |
+| `competitors` | JSONB | `[{name, positioning}]` |
+| `qualification_signals` | JSONB | `{positive[], concerns[], unknown[]}` |
+| `recommended_approach` | JSONB | `{entry_point, opening_hook, discovery_questions[]}` |
+| `overview_updated_at` | TIMESTAMPTZ | staleness tracking per section |
+| `agent_model` | VARCHAR(50) | |
+| `firecrawl_sources` | JSONB | URLs scraped |
+| `updated_at` | TIMESTAMPTZ | nullable |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+## `health_scores`
+
+Computed daily from Snowflake `DAILY_ENTERPRISE_*` tables. No AI is involved. Currently disabled (`HEALTH_SCORES_ENABLED=false`).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE | |
+| `computed_date` | DATE NOT NULL | |
+| `overall_score` | FLOAT NOT NULL | weighted composite 0–100 |
+| `overall_status` | VARCHAR(10) | `green` (≥70) \| `yellow` (≥40) \| `red` (&lt;40) |
+| `priority_score` | FLOAT | from `DAILY_ENTERPRISE_PRIORITY_SCORE` |
+| `adoption_score` | FLOAT | from `DAILY_ENTERPRISE_ADOPTION_LEVEL_SCORE` |
+| `relationship_risk_score` | FLOAT | from `DAILY_ENTERPRISE_RELATIONSHIP_RISK_SCORE` |
+| `days_since_last_meeting` | INTEGER | |
+| `crash_count` | INTEGER | from `MONTHLY_ENTERPRISE_CRASHES` |
+| `weights_used` | JSONB | for auditability |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+**Unique constraint:** `(account_id, computed_date)`
+
+## `loss_analyses`
+
+AI-generated by the Loss Analysis agent (Claude Opus). One row per account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE UNIQUE | |
+| `failure_category` | VARCHAR(50) NOT NULL | `no_budget` \| `competitor` \| `price` \| `not_a_fit` \| `unresponsive` \| `champion_left` \| `timing` \| `internal_priority_shift` \| `other` |
+| `tldr` | TEXT NOT NULL | 2–3 sentence summary |
+| `what_we_missed` | TEXT | nullable |
+| `key_call_ids` | UUID[] | nullable |
+| `detailed_analysis` | TEXT | nullable |
+| `competitor_name` | VARCHAR(255) | required if category is `competitor` |
+| `override_category` | VARCHAR(50) | user override |
+| `override_notes` | TEXT | user override |
+| `overridden_by` | VARCHAR(255) | user's email |
+| `overridden_at` | TIMESTAMPTZ | nullable |
+| `agent_model` | VARCHAR(50) | |
+| `input_context` | JSONB | context sent to model |
+| `updated_at` | TIMESTAMPTZ | nullable |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+## `meeting_prep_briefs`
+
+AI-generated meeting preparation briefs. One row per meeting request — not unique per account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE | |
+| `meeting_type` | VARCHAR(20) NOT NULL | `discovery` \| `demo` \| `negotiation` \| `audit_review` \| `poc_kickoff` \| `checkin_qbr` |
+| `meeting_date` | TIMESTAMPTZ | nullable |
+| `attendees` | JSONB | `[{name, title}]` default `[]` |
+| `goal` | TEXT | nullable |
+| `concerns` | TEXT | nullable |
+| `brief` | JSONB NOT NULL | full structured brief |
+| `anthropic_model` | VARCHAR(50) | |
+| `requested_by` | VARCHAR(255) | user's email |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+**Indexes:** `account_id`, `(account_id, created_at DESC)`, `created_at DESC`
+
+## `contacts`
+
+Enriched contacts from ZoomInfo. Multiple contacts per account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `account_id` | UUID FK → `accounts` CASCADE | |
+| `zoominfo_person_id` | VARCHAR(50) | nullable |
+| `full_name` | VARCHAR(255) NOT NULL | |
+| `job_title` | VARCHAR(255) | nullable |
+| `email` | VARCHAR(255) | nullable |
+| `phone` | VARCHAR(50) | nullable |
+| `linkedin_url` | VARCHAR(500) | nullable |
+| `management_level` | VARCHAR(100) | nullable |
+| `accuracy_score` | FLOAT | nullable |
+| `source` | VARCHAR(50) | default `"zoominfo"` |
+| `fetched_at` | TIMESTAMPTZ NOT NULL | |
+| `fetched_by` | VARCHAR(255) | user's email |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+## `settings`
+
+Key-value store for runtime configuration — for example, ZoomInfo refresh tokens that must survive API restarts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `key` | VARCHAR(255) UNIQUE NOT NULL | e.g. `"zoominfo_refresh_token"` |
+| `value` | TEXT NOT NULL | |
+| `updated_at` | TIMESTAMPTZ | auto-updated |
+| `created_at` | TIMESTAMPTZ | inherited |
+
+## `task_log`
+
+All worker task executions. Used for monitoring, debugging, and cost tracking.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `task_type` | VARCHAR(50) NOT NULL | |
+| `account_id` | UUID FK → `accounts` | nullable |
+| `status` | VARCHAR(20) | `queued` \| `running` \| `completed` \| `failed` |
+| `payload` | JSONB | task payload |
+| `result` | JSONB | task result |
+| `error_message` | TEXT | nullable |
+| `attempt_count` | INTEGER | default 0 |
+| `max_attempts` | INTEGER | default 3 |
+| `anthropic_input_tokens` | INTEGER | nullable |
+| `anthropic_output_tokens` | INTEGER | nullable |
+| `estimated_cost_cents` | INTEGER | nullable |
+| `created_at` | TIMESTAMPTZ | inherited |

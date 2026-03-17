@@ -1,0 +1,89 @@
+---
+title: "Docker services"
+description: "Configuration details for each Docker service: db, localstack, api, worker, and frontend."
+---
+
+The Hub uses five Docker services defined in `docker-compose.yml`.
+
+## `db` — PostgreSQL 16
+
+```yaml
+image: postgres:16-alpine
+POSTGRES_DB: hub
+POSTGRES_USER: hub
+POSTGRES_PASSWORD: hub_local
+port: 5432
+volume: pgdata (persistent)
+```
+
+## `localstack` — SQS
+
+```yaml
+image: localstack/localstack:3.0
+SERVICES: sqs
+port: 4566
+init: localstack/init-sqs.sh
+```
+
+The SQS init script creates two queues in `us-west-2`:
+
+- `hub-tasks-dlq` — dead letter queue
+- `hub-tasks` — main task queue with redrive policy: max 3 receives → DLQ
+
+<Warning>
+  Always use `--region us-west-2` in `awslocal` commands. The LocalStack queues are explicitly created in this region and commands without the flag will fail silently.
+</Warning>
+
+## `api` — FastAPI
+
+```yaml
+build target: api
+port: 8000
+command: bash scripts/start-api.sh --reload
+depends_on: db (healthy), localstack (started)
+volumes: ./src, ./alembic.ini, ./migrations, ./scripts
+```
+
+`start-api.sh` runs `alembic upgrade head` then starts `uvicorn src.api.main:app`.
+
+## `worker` — Python worker
+
+```yaml
+build target: worker
+command: bash scripts/start-worker.sh
+depends_on: db (healthy), localstack (started)
+volumes: ./src, ./alembic.ini, ./migrations, ./scripts, ./snowflake.json
+```
+
+`start-worker.sh` runs `alembic upgrade head` then starts `python -m src.worker.main`.
+
+## `frontend` — Next.js
+
+```yaml
+build: frontend/Dockerfile
+port: 3000
+command: npm run dev
+volumes: ./frontend (live reload)
+env:
+  NEXT_PUBLIC_API_URL: http://localhost:8000
+  WORKOS_CLIENT_ID: ...
+  WORKOS_API_KEY: ...
+  WORKOS_COOKIE_PASSWORD: ...
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI: ...
+```
+
+## Dockerfile (multi-stage)
+
+The `api` and `worker` services share a common base image built from `python:3.12-slim`. The build installs `uv`, syncs dependencies from `pyproject.toml` and `uv.lock`, then copies `src/`, `alembic.ini`, `migrations/`, and `scripts/`.
+
+```dockerfile
+FROM python:3.12-slim AS base
+# installs uv, syncs deps from pyproject.toml + uv.lock
+# copies src/, alembic.ini, migrations/, scripts/
+
+FROM base AS api
+CMD ["bash", "scripts/start-api.sh"]
+
+FROM base AS worker
+CMD ["bash", "scripts/start-worker.sh"]
+```

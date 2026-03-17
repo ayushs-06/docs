@@ -1,0 +1,123 @@
+---
+title: "AI prompts & models"
+description: "Prompt templates, output schemas, and model assignments for all AI agents."
+---
+
+## Seller context
+
+**File:** `src/prompts/context.py`
+
+The `SELLER_CONTEXT` block is injected into every AI prompt to ground responses in Profound's business:
+
+- **Company:** Profound — AI Search Visibility Platform (AEO/GEO)
+- **Funding:** $58.5M raised ($35M Series B, Sequoia Capital, August 2025)
+- **Customers:** 500+ including Ramp, U.S. Bank, Rippling, MongoDB, DocuSign
+- **Products:** AEI, Prompt Volumes, Agent Analytics, Agents/Workflows, Shopping, Citations
+- **Key stats:** 100M+ daily queries, 4.4× conversion rate vs organic
+
+## Call summary
+
+**Model:** Claude Sonnet | **File:** `src/prompts/call_summary.py`
+
+```json
+{
+  "summary": "3-5 sentences",
+  "topics": [{"topic": "", "detail": ""}],
+  "decisions": [{"decision": "", "context": ""}],
+  "objections": [{"objection": "", "response_given": "", "new_or_recurring": ""}],
+  "sentiment": "positive|neutral|negative|mixed",
+  "sentiment_vs_prior": "improved|stable|declined|first_call",
+  "competitive_mentions": [{"competitor": "", "context": ""}],
+  "risk_signals": ["..."],
+  "next_steps": "...",
+  "action_items": [{"description": "", "owner": "", "due_date": ""}],
+  "deal_momentum": "accelerating|steady|stalling|dead"
+}
+```
+
+## Loss analysis
+
+**Model:** Claude Opus | **File:** `src/prompts/loss_analysis.py`
+
+```json
+{
+  "failure_category": "no_budget|competitor|price|not_a_fit|unresponsive|champion_left|timing|internal_priority_shift|other",
+  "competitor_name": "string|null",
+  "tldr": "2-3 sentences",
+  "deal_arc": "one paragraph",
+  "turning_point": "specific call/moment",
+  "sentiment_trajectory": [{"call_number": 0, "date": "", "sentiment": "", "momentum": ""}],
+  "what_we_missed": "...",
+  "detailed_analysis": "2-3 paragraphs",
+  "key_call_references": ["date/title strings"],
+  "recommendations": ["..."],
+  "winback_potential": "high|medium|low|none",
+  "winback_strategy": "..."
+}
+```
+
+## Meeting prep
+
+**Model:** Claude Sonnet | **File:** `src/prompts/meeting_prep.py`
+
+**Meeting types:** `discovery`, `demo`, `negotiation`, `audit_review`, `poc_kickoff`, `checkin_qbr`
+
+```json
+{
+  "header": {
+    "company_name": "",
+    "meeting_type": "",
+    "meeting_date": "",
+    "attendees": [],
+    "goal": ""
+  },
+  "account_snapshot": {
+    "company": "",
+    "industry": "",
+    "deal_size": "",
+    "health_score": ""
+  },
+  "who_youre_meeting": [
+    {"name": "", "title": "", "background": "", "role_in_deal": "", "talking_point": ""}
+  ],
+  "context_and_history": {
+    "key_points": ["..."],
+    "open_commitments": ["..."],
+    "concerns_raised": [{"concern": "", "status": "", "source": ""}],
+    "sentiment_trajectory": "...",
+    "competitive_mentions": ["..."]
+  },
+  "suggested_agenda": [{"topic": "", "time_minutes": 0, "notes": ""}],
+  "discovery_questions": {
+    "aeo_geo_track": ["..."],
+    "general": ["..."]
+  },
+  "potential_objections": {
+    "common_aeo": [{"objection": "", "response": ""}],
+    "deal_specific": [{"objection": "", "response": "", "source": ""}]
+  }
+}
+```
+
+## Action extract
+
+**Model:** Claude Sonnet | **File:** `src/prompts/action_extract.py`
+
+Extracts action items from a single call summary.
+
+```json
+[
+  {"description": "", "owner": "", "due_date": ""}
+]
+```
+
+## Company intel
+
+**Model:** Claude Opus | **File:** `src/prompts/company_intel.py`
+
+Synthesizes web-scraped content and Snowflake firmographic data into a structured company profile.
+
+**Modes:**
+
+- `full` — generates all profile sections
+- `news` — updates only `recent_news` and `hiring_signals`

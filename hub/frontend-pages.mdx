@@ -1,0 +1,56 @@
+---
+title: "Frontend pages"
+description: "Page-by-page reference for all routes in the Next.js App Router."
+---
+
+## `/` — Dashboard
+
+- Call stats: total calls (7d and 24h windows), sentiment breakdown bars
+- Recent open action items
+- Health panels are hidden (`healthEnabled = false` — hardcoded)
+
+## `/accounts` — Account list
+
+- Sortable table: name, stage, owner, deal size, last call, open actions, CRM links
+- Filters: status (active/closed), stage, owner email
+- Search: name or domain (ILIKE)
+- Pagination with direct Salesforce and HubSpot deep links per row
+
+## `/accounts/[id]` — Account detail
+
+The account detail page uses a tabbed layout:
+
+| Tab | Contents |
+|---|---|
+| **Overview** | Company profile: funding, key people, tech stack, recent news |
+| **Signals** | Company intel qualification signals |
+| **Call History** | Paginated call summary cards |
+| **Action Items** | Account-specific action items |
+| **Meeting Prep** | Brief history and request new brief modal |
+| **ZoomInfo** | Three-phase contact enrichment flow |
+| **Loss Analysis** | Shown for Closed Lost accounts only |
+
+**Header actions:**
+- **Refresh Intel** → `POST /api/accounts/{id}/refresh-intel`
+- **Check for Calls** → `POST /api/accounts/{id}/check-calls`
+
+## `/actions` — Global actions
+
+- Filter tabs: Open / Overdue / Completed / Dismissed
+- **My Items** toggle — filters the list to the current user's `owner_email`
+- Inline complete and dismiss actions per row
+
+## `/loss-analysis` — Loss analysis
+
+- Category bar chart (count by failure category)
+- Time period filter and category filter
+- Expandable cards showing TL;DR, detailed analysis, and what we missed
+
+## `/admin` — Admin
+
+- **Sync controls:** trigger SF sync, Gong sync, and loss analysis retrigger
+- **Task queue:** paginated table filterable by type and status, with a detail dialog showing payload, result, and token usage
+
+## `/agents-pricing` — Agent pricing calculator
+
+Interactive pricing calculator for Profound's AI agents. Reads from `frontend/src/data/pricing.json` and `frontend/src/lib/pricing.ts`.

@@ -1,0 +1,48 @@
+---
+title: "Feature flags & hardcodes"
+description: "Known hardcoded values and feature flags controlling health scores, scheduled intel, and CORS."
+---
+
+## `healthEnabled = false` — frontend hardcode
+
+Health score UI is disabled via a hardcode in four frontend files:
+
+- `app/page.tsx`
+- `app/accounts/page.tsx`
+- `app/accounts/[id]/page.tsx`
+- `sidebar.tsx`
+
+```typescript
+// const healthEnabled = process.env.NEXT_PUBLIC_HEALTH_SCORES_ENABLED !== "false";
+const healthEnabled = false
+```
+
+This hides the Health Scores sidebar link, health-related dashboard panels, and the Health tab on the account detail page.
+
+## `HEALTH_SCORES_ENABLED=false` — backend feature flag
+
+When disabled:
+
+- `TaskRouter.dispatch()` skips `health_score` tasks
+- `Scheduler.start()` skips the Daily Health Score job
+- FastAPI's `create_app()` does not include the health router
+
+## `SCHEDULED_INTEL_ENABLED=false` — backend feature flag
+
+When disabled:
+
+- `Scheduler.start()` skips the Weekly Intel News job (Monday 08:00 UTC)
+- `Scheduler.start()` skips the Monthly Intel Full job (1st of month 08:00 UTC)
+
+## CORS origins — hardcoded in `api/main.py`
+
+```python
+# allow_origins=settings.CORS_ORIGINS  # Hardcoded for now
+allow_origins=["http://localhost:3000", "https://sales.dev.tryprofound.com"]
+```
+
+The `CORS_ORIGINS` setting in `.env` is currently bypassed. Update this list directly in `api/main.py` when deploying to new environments.
+
+## Anthropic model string
+
+The default model in `AnthropicClient.complete()` is `"claude-sonnet-4-6"`. Each handler overrides this explicitly, so the default applies only if a handler forgets to pass a model.

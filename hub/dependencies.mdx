@@ -1,0 +1,39 @@
+---
+title: "Dependencies"
+description: "Python and frontend package reference for the Account Intelligence Hub."
+---
+
+## Python (`pyproject.toml`)
+
+| Package | Purpose |
+|---|---|
+| `fastapi>=0.115.0` | API framework |
+| `uvicorn[standard]>=0.32.0` | ASGI server |
+| `sqlalchemy[asyncio]>=2.0.36` | Async ORM |
+| `asyncpg>=0.30.0` | PostgreSQL async driver |
+| `pydantic>=2.10.0` | Data validation |
+| `pydantic-settings>=2.7.0` | Settings management |
+| `httpx>=0.28.0` | Async HTTP client (Firecrawl, ZoomInfo) |
+| `boto3>=1.36.0` | AWS SDK (SQS) |
+| `snowflake-connector-python[pandas]>=3.13.0` | Snowflake client |
+| `anthropic>=0.42.0` | Claude API client |
+| `python-dateutil>=2.9.0` | Date parsing |
+| `alembic>=1.14.0` | Database migrations |
+| `PyJWT[crypto]>=2.9.0` | JWT verification (WorkOS) |
+
+**Dev dependencies:** `pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`, `mypy`, `pre-commit`
+
+## Frontend (`package.json`)
+
+| Package | Purpose |
+|---|---|
+| `next` 16.1.6 | App Router framework |
+| `react` 19 | UI library |
+| `@workos-inc/authkit-nextjs` | WorkOS session management |
+| `@radix-ui/*` | shadcn/ui primitives |
+| `tailwindcss` | Utility-first CSS |
+| `lucide-react` | Icon library |
+| `sonner` | Toast notifications |
+| `class-variance-authority` | Variant-based class composition |
+| `clsx` | Conditional class names |
+| `tailwind-merge` | Merge Tailwind classes without conflicts |

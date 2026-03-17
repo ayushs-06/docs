@@ -1,0 +1,91 @@
+---
+title: "API routes"
+description: "All FastAPI routes, authentication requirements, query parameters, and response shapes."
+---
+
+All routes require a `Bearer {WorkOS JWT}` in the `Authorization` header unless otherwise noted.
+
+<Note>
+  The following routes do **not** require authentication: `GET /api/health`, `POST /api/admin/sync/*` (EventBridge), and `GET /api/admin/zoominfo/callback` (Okta redirect).
+</Note>
+
+## Accounts
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/accounts` | List with filters, search, sort, and pagination |
+| `GET` | `/api/accounts/filter-options` | Distinct stages and owner names |
+| `GET` | `/api/accounts/{id}` | Full account detail with profile, health, and counts |
+| `POST` | `/api/accounts/{id}/refresh-intel` | Enqueue `company_intel` task |
+| `POST` | `/api/accounts/{id}/check-calls` | Enqueue `health_score` task |
+| `POST` | `/api/accounts/{id}/regenerate-loss-analysis` | Enqueue `loss_analysis` task |
+| `GET` | `/api/accounts/{id}/health` | Latest health score with full breakdown |
+| `GET` | `/api/accounts/{id}/health/history` | Health trend data (default 90 days) |
+| `GET` | `/api/accounts/{id}/loss-analysis` | Loss analysis for the account |
+| `PATCH` | `/api/accounts/{id}/loss-analysis` | Override category and notes |
+| `GET` | `/api/accounts/{id}/calls` | Paginated call summaries (`call_date DESC`) |
+| `GET` | `/api/accounts/{id}/actions` | Action items for the account |
+| `POST` | `/api/accounts/{id}/meeting-prep` | Request a meeting prep brief |
+| `GET` | `/api/accounts/{id}/meeting-prep` | List past briefs for the account |
+| `GET` | `/api/accounts/{id}/meeting-prep/{brief_id}` | Full brief detail |
+| `GET` | `/api/accounts/{id}/zoominfo/suggest-titles` | Rules-based title suggestions |
+| `POST` | `/api/accounts/{id}/zoominfo/suggest-titles-ai` | AI-powered title suggestions |
+| `POST` | `/api/accounts/{id}/zoominfo/search` | Search ZoomInfo contacts |
+| `POST` | `/api/accounts/{id}/zoominfo/enrich` | Enrich and save contacts |
+| `GET` | `/api/accounts/{id}/contacts` | List saved ZoomInfo contacts |
+| `GET` | `/api/accounts/{id}/zoominfo/fetch-log` | ZoomInfo fetch history |
+
+### Query parameters for `GET /api/accounts`
+
+| Param | Type | Default |
+|---|---|---|
+| `page` | int ≥1 | 1 |
+| `per_page` | int 1–100 | 50 |
+| `status` | string | — |
+| `stage` | string | — |
+| `owner_email` | string | — |
+| `search` | string | — (name or domain ILIKE) |
+| `sort_by` | `name` \| `deal_size` \| `health_score` \| `last_call_date` \| `owner_name` \| `updated_at` | `updated_at` |
+| `sort_dir` | `asc` \| `desc` | `desc` |
+
+## Calls
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/calls/stats` | Call stats for the dashboard (7d, 24h, sentiment breakdown) |
+| `GET` | `/api/calls/{id}` | Single call summary |
+| `GET` | `/api/calls/{id}/transcript` | Raw transcript fetched from Snowflake |
+
+## Actions
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/actions` | Global action items with filters |
+| `PATCH` | `/api/actions/{id}` | Update status, owner, or due date |
+
+## Loss analysis
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/loss-analyses` | Paginated list with category summary |
+
+## Admin
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/admin/sync/salesforce` | None | Trigger SF sync |
+| `POST` | `/api/admin/sync/gong` | None | Trigger Gong sync |
+| `POST` | `/api/admin/retrigger-loss-analysis` | JWT | Re-run loss analysis for recent Closed Lost accounts |
+| `GET` | `/api/admin/tasks` | JWT | Paginated task log |
+| `GET` | `/api/admin/tasks/{id}` | JWT | Full task detail |
+| `POST` | `/api/admin/health-weights` | JWT | Update health score weights |
+| `GET` | `/api/admin/zoominfo/auth` | JWT | Start ZoomInfo OAuth PKCE flow |
+| `GET` | `/api/admin/zoominfo/callback` | None | OAuth callback (Okta redirect) |
+
+## System
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/health` | None | Returns `{"status": "ok"}` |
+| `GET` | `/api/docs` | None | OpenAPI UI (Swagger) |
+| `GET` | `/api/openapi.json` | None | OpenAPI spec |

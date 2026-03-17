@@ -1,0 +1,49 @@
+---
+title: "Authentication"
+description: "WorkOS AuthKit SSO setup, JWT verification, and API client token flow."
+---
+
+The Hub uses WorkOS AuthKit for SSO. The frontend manages sessions via `@workos-inc/authkit-nextjs`, and the FastAPI backend verifies JWTs on every protected request.
+
+## Frontend auth (WorkOS AuthKit)
+
+`authkitMiddleware` in `frontend/src/middleware.ts` applies to all routes except `_next/static`, `_next/image`, and `favicon.ico`.
+
+- **OAuth callback:** `GET /api/auth/workos/callback` → `handleAuth({ returnPathname: "/welcome" })`
+- **Token sync:** The `TokenSync` client component syncs the WorkOS access token to `lib/api.ts` on first render
+
+## API JWT verification
+
+`src/api/auth.py` verifies every incoming JWT:
+
+<Steps>
+  <Step title="Extract the Bearer token">
+    FastAPI extracts the token from the `Authorization: Bearer {token}` header.
+  </Step>
+  <Step title="Fetch JWKS">
+    The API fetches the JWKS from `{WORKOS_API_BASE_URL}/sso/jwks/{WORKOS_CLIENT_ID}`. The JWKS response is cached for 1 hour.
+  </Step>
+  <Step title="Decode and verify">
+    The token is decoded using `RS256` with `audience="authenticated"` and issuer verification.
+  </Step>
+  <Step title="Check organization">
+    The payload's `org_id` must match `WORKOS_ORG_ID` (Profound's org). Requests from other orgs are rejected with `403`.
+  </Step>
+  <Step title="Return payload">
+    The decoded JWT payload is returned and made available to all route handlers.
+  </Step>
+</Steps>
+
+| Response code | Cause |
+|---|---|
+| `401` | Invalid or expired token |
+| `403` | Valid token but wrong org |
+
+## API client token flow
+
+`frontend/src/lib/api.ts` manages the token lifecycle on the frontend:
+
+1. A module-level `_accessToken` variable is set by the `TokenSync` component on mount
+2. A `_tokenReady` promise ensures no requests fire before the token is initialized
+3. `fetchApi<T>(path, options)` attaches `Authorization: Bearer {token}` to every request
+4. On a `401` response, the client clears the token and calls `signOut()`, which redirects to the WorkOS login page

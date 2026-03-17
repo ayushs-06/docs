@@ -11,6 +11,61 @@
   "navigation": {
     "tabs": [
       {
+        "tab": "Account Intelligence Hub",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "hub/index",
+              "hub/system-architecture",
+              "hub/key-design-decisions"
+            ]
+          },
+          {
+            "group": "Infrastructure",
+            "pages": [
+              "hub/docker-services",
+              "hub/environment-configuration",
+              "hub/migrations",
+              "hub/dependencies"
+            ]
+          },
+          {
+            "group": "Backend",
+            "pages": [
+              "hub/database-schema",
+              "hub/worker-system",
+              "hub/scheduled-jobs",
+              "hub/api-routes",
+              "hub/authentication",
+              "hub/external-clients",
+              "hub/ai-prompts-models"
+            ]
+          },
+          {
+            "group": "Data",
+            "pages": [
+              "hub/data-flow-pipelines",
+              "hub/snowflake-schema"
+            ]
+          },
+          {
+            "group": "Frontend",
+            "pages": [
+              "hub/frontend-architecture",
+              "hub/frontend-pages",
+              "hub/frontend-components"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "hub/feature-flags"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Guides",
         "groups": [
           {

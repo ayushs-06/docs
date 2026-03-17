@@ -1,0 +1,25 @@
+---
+title: "Scheduled jobs"
+description: "Cron-like asyncio scheduler configuration for all background jobs."
+---
+
+`src/worker/scheduler.py` implements pure `asyncio` sleep loops — no external scheduler dependencies.
+
+<Note>
+  Both `sf_sync` and `gong_sync` run immediately on worker startup, then repeat every hour. The scheduler uses `asyncio.create_task` internally.
+</Note>
+
+| Job | Schedule | `task_type` | Payload | Status |
+|---|---|---|---|---|
+| Periodic SF sync | Every 1 hour | `sf_sync` | `{"since_hours": 2}` | **Enabled** |
+| Periodic Gong sync | Every 1 hour | `gong_sync` | `{"since_hours": 2}` | **Enabled** |
+| Daily health score | 07:00 UTC | `health_score` | `{"all_accounts": true}` | Disabled (`HEALTH_SCORES_ENABLED`) |
+| Weekly intel news | Monday 08:00 UTC | `company_intel` | `{"mode": "news"}` | Disabled (`SCHEDULED_INTEL_ENABLED`) |
+| Monthly intel full | 1st of month 08:00 UTC | `company_intel` | `{"mode": "full"}` | Disabled (`SCHEDULED_INTEL_ENABLED`) |
+
+To enable disabled jobs, set the corresponding feature flag in your `.env` file:
+
+```env
+HEALTH_SCORES_ENABLED=true
+SCHEDULED_INTEL_ENABLED=true
+```

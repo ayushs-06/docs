@@ -1,0 +1,61 @@
+---
+title: "Data flow pipelines"
+description: "End-to-end data flow for the primary daily pipeline, Gong discovery, meeting prep, and ZoomInfo enrichment."
+---
+
+All data pipelines are task-driven: each handler enqueues follow-up tasks back to SQS, creating cascading pipelines.
+
+## Primary daily pipeline (from `sf_sync`)
+
+```
+sf_sync
+  ├── [new account]           → company_intel   (→ company_profiles)
+  ├── [has hubspot_id]        → health_score    (→ health_scores)
+  ├── [has domain]            → call_detect
+  │                              └── [new calls] → call_summary  (→ call_summaries)
+  │                                                    └── action_extract (→ action_items)
+  └── [Closed Lost opp]       → loss_analysis   (→ loss_analyses)
+```
+
+`sf_sync` runs every hour and syncs all accounts modified in the past 2 hours. New accounts trigger the full downstream chain automatically.
+
+## Gong discovery pipeline (from `gong_sync`)
+
+```
+gong_sync
+  ├── [new account from Gong] → company_intel
+  └── [any account with recent Gong calls] → call_detect
+                                               └── [new calls] → call_summary
+                                                                     └── action_extract
+```
+
+`gong_sync` discovers accounts that have Gong calls but may not yet exist in the Hub — for example, accounts that called in before their SF record was synced.
+
+## Meeting prep (on-demand)
+
+```
+POST /api/accounts/{id}/meeting-prep
+  → task_log (status: queued)
+  → SQS message (task_type: meeting_prep)
+  → MeetingPrepHandler
+    → loads account + profile + calls + actions + health
+    → Claude Sonnet
+    → meeting_prep_briefs
+```
+
+Meeting prep runs synchronously — the API route waits for the handler to complete and returns the brief ID in the response.
+
+## ZoomInfo contact enrichment (on-demand)
+
+```
+POST /api/accounts/{id}/zoominfo/suggest-titles      (rules-based, no credits)
+POST /api/accounts/{id}/zoominfo/suggest-titles-ai   (Claude Sonnet, no credits)
+POST /api/accounts/{id}/zoominfo/search              (ZoomInfo search API, no credits)
+POST /api/accounts/{id}/zoominfo/enrich              (ZoomInfo enrich API, costs credits)
+  → saves to contacts table
+  → logs to zoominfo_fetch_logs
+```
+
+<Warning>
+  The `/enrich` endpoint calls the ZoomInfo Enrich API, which **costs credits**. Use `/search` first to identify contacts before enriching.
+</Warning>

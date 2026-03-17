@@ -1,0 +1,136 @@
+---
+title: "Worker system"
+description: "Single-process Python worker: SQS polling, task routing, retry logic, and handler descriptions."
+---
+
+`src/worker/main.py` runs as a single async Python process.
+
+## Startup and polling loop
+
+<Steps>
+  <Step title="Initialize clients">
+    The worker creates `SnowflakeClient`, `AnthropicClient`, `FirecrawlClient`, and `SQSClient` instances.
+  </Step>
+  <Step title="Start the scheduler">
+    The `Scheduler` (asyncio-based cron) starts, triggering `sf_sync` and `gong_sync` immediately, then on their configured intervals.
+  </Step>
+  <Step title="Install signal handlers">
+    SIGTERM and SIGINT handlers are registered for graceful shutdown.
+  </Step>
+  <Step title="Poll SQS">
+    The worker polls SQS in a continuous loop: `receive(max_messages=1, wait_time=20s, visibility_timeout=240s)`.
+  </Step>
+  <Step title="Route and execute">
+    Each message is dispatched to `TaskRouter.dispatch(task_type, payload)`.
+  </Step>
+  <Step title="Delete on success">
+    The worker deletes the SQS message after the handler completes successfully.
+  </Step>
+  <Step title="Handle errors">
+    On `HandlerExhaustedError`, the message moves to the DLQ and is deleted from the main queue. On any other error, the message stays in SQS and retries after the visibility timeout expires.
+  </Step>
+</Steps>
+
+## Task router
+
+`src/worker/router.py` maps `task_type` to a handler class:
+
+| `task_type` | Handler | AI model |
+|---|---|---|
+| `sf_sync` | `SFSyncHandler` | None |
+| `gong_sync` | `GongSyncHandler` | None |
+| `company_intel` | `CompanyIntelHandler` | Claude Opus |
+| `health_score` | `HealthScoreHandler` | None |
+| `call_detect` | `CallDetectHandler` | None |
+| `loss_analysis` | `LossAnalysisHandler` | Claude Opus |
+| `call_summary` | `CallSummaryHandler` | Claude Sonnet |
+| `action_extract` | `ActionExtractHandler` | Claude Sonnet |
+| `meeting_prep` | `MeetingPrepHandler` | Claude Sonnet |
+
+## Retry logic
+
+`src/worker/handlers/base.py` implements retry with exponential backoff:
+
+- **Max attempts:** 3
+- **Backoff formula:** `1s × 2^(2 × attempt)` → 1s, 4s, 16s
+- **`RateLimitError` (429):** respects `retry_after` from Anthropic; no additional backoff
+- **`RetryableError`:** triggers the standard backoff
+- **All retries exhausted:** raises `HandlerExhaustedError` → message moves to DLQ
+
+## Handlers
+
+<AccordionGroup>
+  <Accordion title="SFSyncHandler — sf_sync">
+    1. Queries Snowflake `SALESFORCE.SALESFORCE.ACCOUNT` for accounts modified since `since_hours` ago
+    2. Upserts into the `accounts` table matched by `salesforce_account_id`
+    3. Resolves `hubspot_company_id` via three-method priority (SF field → HubSpot reverse → domain)
+    4. Populates the `id_mapping` table
+    5. Queries Snowflake for Closed Lost opportunities
+
+    **Enqueues:** `company_intel` (new accounts), `health_score` (accounts with HubSpot ID), `call_detect` (accounts with domain), `loss_analysis` (Closed Lost accounts)
+  </Accordion>
+
+  <Accordion title="GongSyncHandler — gong_sync">
+    1. Queries `PROFOUND_GTM.ANALYTICS.FACT_GONG_CALLS` for unique domains with calls in the last N hours
+    2. Identifies which domains are missing from the Hub database
+    3. Creates missing accounts, resolves HubSpot IDs, and populates `id_mapping`
+
+    **Enqueues:** `company_intel` (new accounts), `call_detect` (all accounts with recent calls)
+  </Accordion>
+
+  <Accordion title="CompanyIntelHandler — company_intel">
+    1. Loads the account from PostgreSQL
+    2. Scrapes the homepage, `/about`, and `/careers` via Firecrawl
+    3. Searches Firecrawl for recent news
+    4. Queries Snowflake for HubSpot firmographic data, account mapping, and SF account metadata
+    5. Sends all context to **Claude Opus** with `COMPANY_INTEL_SYSTEM/USER` prompt
+    6. Upserts into `company_profiles`
+  </Accordion>
+
+  <Accordion title="CallDetectHandler — call_detect">
+    1. Loads the account from PostgreSQL
+    2. Gets existing `snowflake_call_id`s from `call_summaries`
+    3. Calls `snowflake.detect_new_calls(account_domain, existing_ids)`
+
+    **Enqueues:** `call_summary` for each new call, oldest first
+  </Accordion>
+
+  <Accordion title="CallSummaryHandler — call_summary">
+    1. Loads the account from PostgreSQL
+    2. Fetches the full transcript from Snowflake `FACT_GONG_CALLS.FULL_TRANSCRIPT`
+    3. Gets all prior summaries for this account, ordered oldest first
+    4. Sends to **Claude Sonnet** with `CALL_SUMMARY_SYSTEM/USER` prompt
+    5. Inserts into `call_summaries`
+
+    **Enqueues:** `action_extract`
+
+    <Warning>
+      Calls must be processed oldest → newest. Each invocation receives all prior summaries as context for progressive sentiment tracking.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="ActionExtractHandler — action_extract">
+    1. Loads the call summary and account from PostgreSQL
+    2. Sends to **Claude Sonnet** with `ACTION_EXTRACT_SYSTEM/USER` prompt
+    3. Inserts each action item into `action_items` linked to the account and call summary
+  </Accordion>
+
+  <Accordion title="LossAnalysisHandler — loss_analysis">
+    1. Loads the account from PostgreSQL
+    2. Gets all call summaries ordered chronologically
+    3. Sends to **Claude Opus** with `LOSS_ANALYSIS_SYSTEM/USER` prompt
+    4. Resolves `key_call_references` to actual `call_summary` UUIDs
+    5. Upserts into `loss_analyses` (one row per account)
+  </Accordion>
+
+  <Accordion title="MeetingPrepHandler — meeting_prep">
+    1. Loads the account, company profile, open action items, health score, and call summaries
+    2. Sends to **Claude Sonnet** with `MEETING_PREP_SYSTEM/USER` prompt
+    3. Saves the brief to `meeting_prep_briefs`
+    4. Updates `task_log` with token usage and estimated cost
+
+    <Info>
+      Meeting prep runs synchronously in the handler — the API route waits for the brief before returning a response with the brief ID.
+    </Info>
+  </Accordion>
+</AccordionGroup>

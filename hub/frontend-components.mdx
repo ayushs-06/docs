@@ -1,0 +1,21 @@
+---
+title: "Frontend components"
+description: "Component reference for all custom React components."
+---
+
+| Component | File | Description |
+|---|---|---|
+| `Sidebar` | `sidebar.tsx` | Navigation: Dashboard, Accounts, Action Items, Loss Analysis, Agent Pricing, Admin |
+| `TokenSync` | `token-sync.tsx` | `"use client"` — syncs WorkOS access token to `lib/api.ts` on mount |
+| `MeetingPrepModal` | `meeting-prep-modal.tsx` | Dialog: meeting type, date, attendees, goal, and concerns |
+| `MeetingPrepTab` | `meeting-prep-tab.tsx` | Polls task completion, shows brief history, renders `MeetingPrepBriefView` |
+| `MeetingPrepBriefView` | `meeting-prep-brief-view.tsx` | Collapsible sections: Account Snapshot, Who You're Meeting, Context & History, Agenda, Objections |
+| `ZoomInfoTab` | `zoominfo-tab.tsx` | Three-phase flow: title selection → search results → enrich; shows saved contacts and fetch history |
+| `CallSummaryCard` | `call-summary-card.tsx` | Expandable card with topics, decisions, and objections badges |
+| `LossAnalysisCard` | `loss-analysis-card.tsx` | Expandable loss analysis with category badge |
+| `ActionItemRow` | `action-item-row.tsx` | Inline complete and dismiss actions |
+| `HealthScoreBadge` | `health-score-badge.tsx` | `green` / `yellow` / `red` status badge |
+| `SentimentIndicator` | `sentiment-indicator.tsx` | Sentiment label with color coding |
+| `StageBadge` | `stage-badge.tsx` | Deal stage badge |
+| `Pagination` | `pagination.tsx` | Page navigation controls |
+| `LoadingSkeleton` | `loading-skeleton.tsx` | Skeleton loaders for async content |

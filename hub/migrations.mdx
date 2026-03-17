@@ -1,0 +1,32 @@
+---
+title: "Migration history"
+description: "Alembic migration history and commands for generating and applying migrations."
+---
+
+Alembic manages all schema changes via an async `env.py`. Migrations run automatically when the `api` and `worker` containers start.
+
+## Migration history
+
+| Migration ID | Description |
+|---|---|
+| `38bc06ffcec5` | Initial schema: `accounts`, `id_mapping`, `call_summaries`, `company_profiles`, `health_scores`, `loss_analyses`, `task_log`, `action_items` |
+| `2eec1e035a0c` | Adds `meeting_prep_briefs` table |
+| `a3f1b2c4d5e6` | Adds performance indexes |
+| `04d1b797a986` | Adds `contacts` and `zoominfo_fetch_logs` tables; adds `zoominfo_account_id` to `accounts` |
+| `55948b6cc441` | Adds `settings` table |
+
+## Running migrations
+
+```bash
+# Generate a new migration after modifying models
+DATABASE_URL="postgresql+asyncpg://hub:hub_local@localhost:5432/hub" \
+  uv run alembic revision --autogenerate -m "description"
+
+# Apply all pending migrations
+DATABASE_URL="postgresql+asyncpg://hub:hub_local@localhost:5432/hub" \
+  uv run alembic upgrade head
+```
+
+<Note>
+  You need the Hub's PostgreSQL container running locally before you can generate or apply migrations. Start it with `docker compose up db` if it isn't already running.
+</Note>

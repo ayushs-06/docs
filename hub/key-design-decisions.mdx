@@ -1,0 +1,60 @@
+---
+title: "Key design decisions"
+description: "Architectural rationale and important constraints to be aware of when working on this codebase."
+---
+
+Understanding these decisions will save you time when debugging, extending, or maintaining the Hub.
+
+<AccordionGroup>
+  <Accordion title="No Gong API — all call data comes from Snowflake">
+    All call data comes from Snowflake `PROFOUND_GTM.ANALYTICS.FACT_GONG_CALLS` via Fivetran. No Gong API key is needed or used.
+  </Accordion>
+
+  <Accordion title="The Hub generates its own call summaries">
+    The Hub does not use Snowflake's `AI_SUMMARY` field. Instead, prompts include account context (deal stage, previous calls, company intel, Profound seller context) to produce more actionable output.
+  </Accordion>
+
+  <Accordion title="Single Python worker, not microservices">
+    One process polls SQS and routes by `task_type`. This is simpler to deploy, debug, and share dependencies across handlers compared to a multi-service architecture.
+  </Accordion>
+
+  <Accordion title="Snowflake is read-only">
+    The Hub never writes to Snowflake. All AI-generated content is stored in its own PostgreSQL database. Snowflake is the source of truth for raw account and call data.
+  </Accordion>
+
+  <Accordion title="hubspot_company_id is the cross-system join key">
+    It is stored as `VARCHAR(50)` in the Hub database because Snowflake represents it as NUMBER in some tables and VARCHAR in others. Always cast when joining across Snowflake tables.
+  </Accordion>
+
+  <Accordion title="Three-method ID mapping (SF ↔ HubSpot)">
+    Mapping is resolved in priority order: (a) `SALESFORCE.ACCOUNT.HS_COMPANY_ID_C`, (b) `HUBSPOT.COMPANY.PROPERTY_SALESFORCEACCOUNTID`, (c) domain-based matching as a last resort. Confidence scores (1.0 / 0.9 / 0.7) reflect this priority.
+  </Accordion>
+
+  <Accordion title="Closed Lost lives on Opportunity, not Account">
+    Use `SALESFORCE.SALESFORCE.OPPORTUNITY.STAGE_NAME = 'Closed Lost'` and join to Account via `ACCOUNT_ID`. The Account record itself does not carry the Closed Lost status.
+  </Accordion>
+
+  <Accordion title="Calls must be processed oldest to newest">
+    Calls are always processed `CALL_DATE ASC`. Each call summary invocation receives all prior summaries as context for progressive sentiment tracking. Processing out of order breaks this continuity.
+  </Accordion>
+
+  <Accordion title="Transcripts are never stored in PostgreSQL">
+    Transcripts are fetched on demand from Snowflake `FACT_GONG_CALLS.FULL_TRANSCRIPT`. This avoids large data in PostgreSQL and keeps Snowflake as the source of truth.
+  </Accordion>
+
+  <Accordion title="ZoomInfo OAuth token persistence">
+    Okta rotates refresh tokens on each use. The `ZoomInfoClient` persists rotated tokens to the `settings` table via an `on_token_rotated` callback so they survive API restarts.
+  </Accordion>
+
+  <Accordion title="Two Snowflake databases">
+    `DBT_ANALYTICS` has most tables. `PROFOUND_GTM` has Gong data. Do not confuse them — queries against the wrong database will return no results or fail silently.
+  </Accordion>
+
+  <Accordion title="SQS queues are in us-west-2">
+    LocalStack queues are explicitly created with `--region us-west-2`. Always include `--region` in `awslocal` commands.
+  </Accordion>
+
+  <Accordion title="Meeting prep runs synchronously">
+    The `MeetingPrepHandler` is invoked directly from the API route and the route waits for the brief before returning. This differs from other task types which are fully async.
+  </Accordion>
+</AccordionGroup>

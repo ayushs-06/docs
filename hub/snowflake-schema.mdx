@@ -1,0 +1,62 @@
+---
+title: "Snowflake queries & schema"
+description: "Snowflake databases, key tables, type inconsistencies, and the three-method ID mapping strategy."
+---
+
+## Databases
+
+| Database | Description |
+|---|---|
+| `DBT_ANALYTICS` | SF accounts (via Fivetran), HubSpot companies, account mappings, health scores |
+| `PROFOUND_GTM` | Gong call data (`GONG.FACT_GONG_CALLS`) |
+
+<Warning>
+  Always use `DBT_ANALYTICS` for SF and HubSpot data. Use `PROFOUND_GTM` **only** for Gong call data. Never write to either database — the Hub is read-only against Snowflake.
+</Warning>
+
+## Key tables
+
+| Table | Database.Schema | Notes |
+|---|---|---|
+| `SALESFORCE.ACCOUNT` | `DBT_ANALYTICS.SALESFORCE` | Key fields: `HS_COMPANY_ID_C`, `DOMAIN_C`, `CUSTOMER_STATUS_C`, `ZOOMINFO_ACCOUNT_ID_C` |
+| `SALESFORCE.OPPORTUNITY` | `DBT_ANALYTICS.SALESFORCE` | Closed Lost: `STAGE_NAME = 'Closed Lost'` |
+| `HUBSPOT.COMPANY` | `DBT_ANALYTICS.HUBSPOT` | `PROPERTY_SALESFORCEACCOUNTID`, `PROPERTY_DOMAIN`, `ID` (NUMBER — cast to VARCHAR) |
+| `ACCOUNT_MAPPING` | `DBT_ANALYTICS.ANALYTICS` | `CONTRACT_START_DATE`, `CONTRACT_END_DATE`, `DEAL_TYPE`, `FUTURE_RENEWAL_DEAL_ID` |
+| `FACT_GONG_CALLS` | `PROFOUND_GTM.ANALYTICS` | `CALL_ID`, `ACCOUNT_DOMAIN`, `FULL_TRANSCRIPT`, `SENTIMENT_SCORE` |
+| `DAILY_ENTERPRISE_PRIORITY_SCORE` | `DBT_ANALYTICS.ANALYTICS` | `HUBSPOT_COMPANY_ID` (VARCHAR), `priority_score` |
+| `DAILY_ENTERPRISE_ADOPTION_LEVEL_SCORE` | `DBT_ANALYTICS.ANALYTICS` | `CHURN_RISK_ADOPTION_LEVEL_SCORE` |
+| `MONTHLY_ENTERPRISE_CRASHES` | `DBT_ANALYTICS.ANALYTICS` | `NUM_USERS_EXPERIENCED_CRASHES` |
+
+## `hubspot_company_id` type inconsistency
+
+`hubspot_company_id` is stored as different types across Snowflake tables. Always cast when joining.
+
+<Warning>
+  Failing to cast `hubspot_company_id` before joining will cause silent mismatches or query failures.
+</Warning>
+
+| Table | Type |
+|---|---|
+| `HUBSPOT.COMPANY.ID` | NUMBER |
+| `EM_ACCOUNT_MAPPING.HUBSPOT_COMPANY_ID` | NUMBER |
+| `ACCOUNT_MAPPING.HUBSPOT_COMPANY_ID` | NUMBER |
+| `SALESFORCE.ACCOUNT.HS_COMPANY_ID_C` | VARCHAR |
+| `DAILY_ENTERPRISE_PRIORITY_SCORE.HUBSPOT_COMPANY_ID` | VARCHAR |
+
+Always cast: `CAST(em.hubspot_company_id AS VARCHAR)`
+
+## Three-method ID mapping (SF ↔ HubSpot)
+
+The Hub resolves Salesforce ↔ HubSpot ID mappings using three methods in priority order:
+
+| Priority | Method | Source | Confidence |
+|---|---|---|---|
+| A | SF field | `SALESFORCE.ACCOUNT.HS_COMPANY_ID_C` | 1.0 |
+| B | HubSpot reverse | `HUBSPOT.COMPANY.PROPERTY_SALESFORCEACCOUNTID` | 0.9 |
+| C | Domain fallback | `HUBSPOT.COMPANY.PROPERTY_DOMAIN` match | 0.7 |
+
+The first method that returns a match wins. Results are stored in the `id_mapping` table.
+
+<Tip>
+  When debugging a missing `hubspot_company_id`, check the `id_mapping` table and look at the `match_method` and `confidence` columns to understand how (or why) the mapping was resolved.
+</Tip>

@@ -1,0 +1,27 @@
+---
+title: "Frontend architecture"
+description: "Next.js App Router setup, auth middleware, API client pattern, and component library."
+---
+
+**Stack:** Next.js 16.1.6 (App Router), React 19, TypeScript strict mode, shadcn/ui, Tailwind CSS
+
+**Path alias:** `@/*` → `./src/*`
+
+## Auth middleware
+
+`frontend/src/middleware.ts` applies `authkitMiddleware` to all routes except static assets (`_next/static`, `_next/image`, `favicon.ico`).
+
+## API client
+
+`frontend/src/lib/api.ts` manages all backend communication:
+
+- A module-level `_accessToken` variable is set by the `TokenSync` component on mount
+- A `_tokenReady` promise ensures every request waits for the token before firing
+- `fetchApi<T>(path, options)` is a typed fetch wrapper that attaches the `Authorization` header automatically
+- On a `401` response, the client calls `signOut()` to redirect to the WorkOS login page
+
+## Component library
+
+The frontend uses [shadcn/ui](https://ui.shadcn.com/) components built on Radix UI primitives:
+
+`Badge`, `Button`, `Card`, `Dialog`, `DropdownMenu`, `Input`, `ScrollArea`, `Select`, `Separator`, `Skeleton`, `Sonner` (toast notifications), `Table`, `Tabs`

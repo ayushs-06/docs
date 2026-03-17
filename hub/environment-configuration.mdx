@@ -1,0 +1,107 @@
+---
+title: "Environment & configuration"
+description: "All environment variables and pydantic-settings fields for the Account Intelligence Hub."
+---
+
+All settings are managed via `src/config.py` using `pydantic-settings`. Values load from a `.env` file at the project root.
+
+<Warning>
+  Never commit your `.env` file or any real credentials to version control. Use `.env.example` as the template.
+</Warning>
+
+## Full `.env.example`
+
+```env
+# Database
+DATABASE_URL=postgresql+asyncpg://hub:hub_local@localhost:5432/hub
+
+# SQS (LocalStack)
+SQS_ENDPOINT=http://localhost:4566
+SQS_QUEUE_URL=http://localhost:4566/000000000000/hub-tasks
+SQS_DLQ_URL=http://localhost:4566/000000000000/hub-tasks-dlq
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AWS_DEFAULT_REGION=us-west-2
+
+# Snowflake (read-only)
+SNOWFLAKE_ACCOUNT=
+SNOWFLAKE_USER=
+SNOWFLAKE_PASSWORD=
+SNOWFLAKE_WAREHOUSE=
+SNOWFLAKE_DATABASE=DBT_ANALYTICS
+SNOWFLAKE_CREDENTIALS_FILE=
+SNOWFLAKE_CREDENTIALS_JSON=
+
+# Anthropic
+ANTHROPIC_API_KEY=
+
+# Firecrawl
+FIRECRAWL_API_KEY=
+FIRECRAWL_BASE_URL=https://api.firecrawl.dev/v1
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=TEXT
+
+# Feature flags
+HEALTH_SCORES_ENABLED=false
+SCHEDULED_INTEL_ENABLED=false
+
+# WorkOS Auth
+WORKOS_CLIENT_ID=
+WORKOS_API_KEY=
+WORKOS_COOKIE_PASSWORD=
+WORKOS_API_BASE_URL=https://auth.api.tryprofound.com
+WORKOS_ORG_ID=org_01KBDC9X725HEDDZ6BN2FVCPTP
+
+# CORS
+CORS_ORIGINS=["http://localhost:3000","https://sales.dev.tryprofound.com"]
+
+# Frontend CRM links
+NEXT_PUBLIC_SALESFORCE_BASE_URL=https://java-force-8858.lightning.force.com
+NEXT_PUBLIC_HUBSPOT_PORTAL_ID=23651831
+NEXT_PUBLIC_HEALTH_SCORES_ENABLED="false"
+
+# ZoomInfo
+ZOOMINFO_CLIENT_ID=
+ZOOMINFO_CLIENT_SECRET=
+ZOOMINFO_REFRESH_TOKEN=
+ZOOMINFO_TOKEN_URL=https://okta-login.zoominfo.com/oauth2/default/v1/token
+ZOOMINFO_API_BASE_URL=https://api.zoominfo.com/gtm
+ZOOMINFO_AUTH_REDIRECT_URI=https://sales.dev.api.tryprofound.com/api/admin/zoominfo/callback
+```
+
+## `Settings` class fields
+
+| Field | Default | Notes |
+|---|---|---|
+| `DATABASE_URL` | `""` | asyncpg connection string |
+| `SQS_ENDPOINT` | `""` | LocalStack endpoint |
+| `SQS_QUEUE_URL` | `""` | Main task queue URL |
+| `SQS_DLQ_URL` | `""` | Dead letter queue URL |
+| `SQS_VISIBILITY_TIMEOUT` | `240` | Seconds |
+| `AWS_DEFAULT_REGION` | `"us-west-2"` | |
+| `SNOWFLAKE_ACCOUNT` | `""` | |
+| `SNOWFLAKE_USER` | `""` | |
+| `SNOWFLAKE_PASSWORD` | `""` | |
+| `SNOWFLAKE_WAREHOUSE` | `""` | |
+| `SNOWFLAKE_DATABASE` | `"DBT_ANALYTICS"` | |
+| `SNOWFLAKE_CREDENTIALS_FILE` | `""` | Path to JSON (key-pair auth) |
+| `SNOWFLAKE_CREDENTIALS_JSON` | `""` | JSON string (CI/CD) |
+| `ANTHROPIC_API_KEY` | `""` | |
+| `WORKOS_CLIENT_ID` | `""` | |
+| `WORKOS_API_BASE_URL` | `"https://auth.api.tryprofound.com"` | |
+| `WORKOS_ORG_ID` | `"org_01KBDC9X725HEDDZ6BN2FVCPTP"` | Profound org |
+| `CORS_ORIGINS` | `[localhost:3000, sales.dev...]` | |
+| `LOG_LEVEL` | `"INFO"` | |
+| `LOG_FORMAT` | `"JSON"` | |
+| `HEALTH_SCORES_ENABLED` | `False` | Feature flag |
+| `SCHEDULED_INTEL_ENABLED` | `False` | Feature flag |
+| `FIRECRAWL_API_KEY` | `""` | |
+| `FIRECRAWL_BASE_URL` | `"https://api.firecrawl.dev/v1"` | |
+| `ZOOMINFO_CLIENT_ID` | `""` | |
+| `ZOOMINFO_CLIENT_SECRET` | `""` | |
+| `ZOOMINFO_REFRESH_TOKEN` | `""` | Obtained via OAuth flow |
+| `ZOOMINFO_TOKEN_URL` | `"https://okta-login.zoominfo.com/..."` | |
+| `ZOOMINFO_API_BASE_URL` | `"https://api.zoominfo.com/gtm"` | |
+| `ZOOMINFO_AUTH_REDIRECT_URI` | `"https://sales.dev.api..."` | |

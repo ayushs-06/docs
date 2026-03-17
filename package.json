@@ -1,0 +1,12 @@
+{
+  "name": "lazarus-docs",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "mintlify dev --port 3000",
+    "build": "mintlify build",
+    "lint": "mintlify broken-links"
+  },
+  "devDependencies": {
+    "mintlify": "latest"
+  }
+}

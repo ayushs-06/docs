@@ -1,0 +1,54 @@
+---
+title: "System architecture"
+description: "Overview of the Account Intelligence Hub's architecture, services, and data flow."
+---
+
+The Hub runs as five Docker services that communicate through a PostgreSQL database and an SQS queue.
+
+## Service topology
+
+```
+Browser → Next.js Frontend (port 3000)
+              ↓ Bearer JWT (WorkOS)
+         FastAPI API (port 8000)
+              ↓ SQLAlchemy async
+         PostgreSQL (port 5432)
+              ↓ publishes tasks
+         SQS Queue (LocalStack, port 4566)
+              ↑ polls
+         Python Worker (single process)
+              ↓ reads (read-only)
+         Snowflake (DBT_ANALYTICS + PROFOUND_GTM)
+              ↓
+         Anthropic API (Claude Sonnet / Opus)
+              ↓
+         Firecrawl API (web scraping)
+              ↓
+         ZoomInfo API (contact enrichment)
+```
+
+**Four Docker services:** `frontend`, `api`, `worker`, `db`, plus `localstack` for SQS.
+
+<Info>
+  The worker is a **single Python process** that polls SQS with long-polling (20s wait) and routes by `task_type`. Handlers cascade by enqueuing follow-up tasks back to SQS.
+</Info>
+
+## Request lifecycle
+
+<Steps>
+  <Step title="Frontend sends request">
+    The Next.js frontend calls the FastAPI API with a WorkOS Bearer JWT in the `Authorization` header.
+  </Step>
+  <Step title="API authenticates and enqueues">
+    FastAPI verifies the JWT, writes a `task_log` record, and publishes an SQS message with `task_type` and payload.
+  </Step>
+  <Step title="Worker picks up the task">
+    The Python worker receives the SQS message via long-polling, routes it to the appropriate handler, and executes the AI pipeline.
+  </Step>
+  <Step title="Handler stores results">
+    The handler writes results to PostgreSQL, updates the `task_log`, and deletes the SQS message on success.
+  </Step>
+  <Step title="Frontend polls for completion">
+    The frontend polls the API for task status and renders the result when complete.
+  </Step>
+</Steps>
